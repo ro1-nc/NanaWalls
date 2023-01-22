@@ -23,6 +23,7 @@ namespace NanaWalls
             RibbonPanel panel5 = null;
             RibbonPanel panel6 = null;
             RibbonPanel panel7 = null;
+            RibbonPanel panel8 = null;
             
             string tName = "NanaWalls";
             
@@ -33,6 +34,7 @@ namespace NanaWalls
             string pName5= "Rotate Right";
             string pName6= "Get Paramters";
             string pName7= "Rotate Door";
+            string pName8= "Extrude profile";
 
             try
             {
@@ -44,6 +46,7 @@ namespace NanaWalls
                 panel5 = application.CreateRibbonPanel(tName, pName5);
                 panel6 = application.CreateRibbonPanel(tName, pName6);
                 panel7 = application.CreateRibbonPanel(tName, pName7);
+                panel8 = application.CreateRibbonPanel(tName, pName8);
             }
             catch (Exception e)
             {
@@ -59,6 +62,7 @@ namespace NanaWalls
             RotateRightElement.AddButton(panel5);
             Parametrs.AddButton(panel6);
             RotateDoor.AddButton(panel7);
+            ExtrudeWall.AddButton(panel8);
             
             return Result.Succeeded;
         }

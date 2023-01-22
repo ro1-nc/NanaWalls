@@ -32,7 +32,7 @@ namespace NanaWalls
                 pushButton.ToolTip = "Hello";
 
                 var path= "D:\\button_1.png";
-                Uri uriImage = new Uri(path);
+                Uri uriImage = new Uri("pack://application:,,,/NanaWalls;component/Resources/button_1.jpg");
                 BitmapImage largeimage = new BitmapImage();
                 pushButton.LargeImage = largeimage;
 
