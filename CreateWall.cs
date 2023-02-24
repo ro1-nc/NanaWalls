@@ -15,8 +15,8 @@ namespace NanaWalls
 {
     [Transaction(TransactionMode.Manual)]
 
-    
-    class Hello : IExternalCommand
+
+    class CreateWall : IExternalCommand
     {
 
         public Document Doc { get; set; }
@@ -28,9 +28,9 @@ namespace NanaWalls
                 string thisClassName = MethodBase.GetCurrentMethod().DeclaringType.FullName;
                 string thisAssemblyPath = Assembly.GetExecutingAssembly().Location;
 
-                PushButtonData buttonData = new PushButtonData("cmdHello", "Hello", thisAssemblyPath, thisClassName);
+                PushButtonData buttonData = new PushButtonData("cmdwalll", "Creates wall", thisAssemblyPath, thisClassName);
                 PushButton pushButton = panel.AddItem(buttonData) as PushButton;
-                pushButton.ToolTip = "Hello";
+                pushButton.ToolTip = "Creates wall";
 
                 Assembly myAssembly = Assembly.GetExecutingAssembly();
 
@@ -52,9 +52,20 @@ namespace NanaWalls
         }
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Transaction transaction = new Transaction(doc, "Create Wall");
+            transaction.Start();
 
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            WallType wallType = collector.OfClass(typeof(WallType)).Cast<WallType>().FirstOrDefault(x => x.Name == "Wall-Ext_102Bwk-75Ins-100LBlk-12P") as WallType;
+            FilteredElementCollector levcollector = new FilteredElementCollector(doc);
+            Level level = levcollector.OfClass(typeof(Level)).Cast<Level>().FirstOrDefault() as Level;
 
-            MessageBox.Show("Hello");
+            Wall wall = Wall.Create(doc, Line.CreateBound(new XYZ(0, 0, 0), new XYZ(10, 0, 0)), wallType.Id, level.Id, 10, 0, false, false);
+
+            transaction.Commit();
+
+            MessageBox.Show("Wall Created");
             return Result.Succeeded;
         }
     }

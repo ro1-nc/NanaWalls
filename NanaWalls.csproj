@@ -55,6 +55,7 @@
   <ItemGroup>
     <Compile Include="ChairInstance.cs" />
     <Compile Include="Class1.cs" />
+    <Compile Include="CreateWall.cs" />
     <Compile Include="ExtrudeWall.cs" />
     <Compile Include="FamInstance.cs" />
     <Compile Include="Hello.cs" />
@@ -67,6 +68,7 @@
   <ItemGroup />
   <ItemGroup>
     <Content Include="Resources\button_1.jpg" />
+    <Content Include="Resources\icon.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

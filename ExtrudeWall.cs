@@ -76,10 +76,19 @@ namespace NanaWalls
 
                 Line sel = Line.CreateBound(new XYZ(start.X, start.Y, 0), new XYZ(end.X, end.Y, 0));
 
-                Line leftpara = CreateParallelLine(sel, -1);
+                XYZ startPoint = sel.GetEndPoint(0);
+                XYZ endPoint = sel.GetEndPoint(1);
+                XYZ modelLineDirection = endPoint.Subtract(startPoint);
+                XYZ modelLineDirectionUnitVector = modelLineDirection.Divide(endPoint.DistanceTo(startPoint));
+                //walllength reduced for tolerance toavoid extra wall by 1.5feet
+                XYZ newStartPoint = startPoint + modelLineDirectionUnitVector.Multiply(.5);
+                XYZ newEndPoint = endPoint + modelLineDirectionUnitVector.Negate().Multiply(.5);
+                Line shorterLine = Line.CreateBound(newStartPoint, newEndPoint);
+
+                Line leftpara = CreateParallelLine(shorterLine, -1);
                 Line leftpara2 = Line.CreateBound(new XYZ(leftpara.GetEndPoint(0).X, leftpara.GetEndPoint(0).Y, 10), new XYZ(leftpara.GetEndPoint(1).X, leftpara.GetEndPoint(1).Y, 10));
 
-                Line rightpara = CreateParallelLine(sel, 1);
+                Line rightpara = CreateParallelLine(shorterLine, 1);
 
                 Line invertrightpara = Line.CreateBound(rightpara.GetEndPoint(1), rightpara.GetEndPoint(0));
                 Line invertrightpara2 = Line.CreateBound(new XYZ(invertrightpara.GetEndPoint(0).X, invertrightpara.GetEndPoint(0).Y, 10), new XYZ(invertrightpara.GetEndPoint(1).X, invertrightpara.GetEndPoint(1).Y, 10));
@@ -114,47 +123,77 @@ namespace NanaWalls
                     DrawModelLine(bottompara);
 
 
-                    SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
+                    Solid solid = null;
 
-                    CurveLoop profileLoop = new CurveLoop();
-                    CurveLoop profileLoop2 = new CurveLoop();
-                    List<CurveLoop> profile3 = new List<CurveLoop>();
+                    var profileLoop = new CurveLoop();
+
+                    IList<CurveLoop> profile3 = new List<CurveLoop>();
                     List<Line> lines = new List<Line>();
-                    List<Line> zlines = new List<Line>();
+
                     lines.Add(leftpara);
                     lines.Add(bottompara);
                     lines.Add(invertrightpara);
                     lines.Add(inverttoppara);
 
-                    zlines.Add(leftpara2);
-                    zlines.Add(bottompara2);
-                    zlines.Add(invertrightpara2);
-                    zlines.Add(inverttoppara2);
+
 
                     foreach (Line l in lines)
                     {
-                        profileLoop.Append(l);
+                        Curve curve = l as Curve;
+                        profileLoop.Append(curve);
                     }
 
-                    foreach (Line l in zlines)
-                    {
-                        profileLoop2.Append(l);
-                    }
                     //Here I want to add both created CurveLoops to list
                     profile3.Add(profileLoop);
 
+                    double heightDistance = Math.Abs(10);
+
+                    solid = GeometryCreationUtilities.CreateExtrusionGeometry(profile3, XYZ.BasisZ, heightDistance);
+
+                    Wall wall1 = eFromString as Wall;
+
                     
 
-                    profile3.Add(profileLoop2);
+                    Room room = Doc.GetRoomAtPoint(newStartPoint);
 
-                    //Create Loft
-                    Solid loft = GeometryCreationUtilities.CreateLoftGeometry(profile3, options);
-                    //profile3.Add(leftpara);
+                    bool solid2 = IsSolidInRoom(Doc, solid);
 
 
+                    try
+                    {
+                        var genericModelCategory = Doc.Settings.Categories.get_Item(BuiltInCategory.OST_GenericModel).Id;
+                        ElementId categoryid = genericModelCategory;
+                        Color red = new Color(255, 0, 0);
+                        OverrideGraphicSettings overrideGraphicSettings = new OverrideGraphicSettings();
 
 
+                        var shape = DirectShape.CreateElement(Doc, categoryid);
+                        shape.SetShape(new List<GeometryObject> { solid });
 
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                    GetAssociatedRooms(Doc, profileLoop);
+
+                    //FilteredElementCollector collector = new FilteredElementCollector(Doc, lines);
+
+                    //IList<Element> floors = collector.WherePasses(filter).WhereElementIsNotElementType().ToElements();
+                    var wallCollector = new FilteredElementCollector(Doc)
+                                                            .WhereElementIsNotElementType()
+                                                            .OfCategory(BuiltInCategory.INVALID)
+                                                            .OfClass(typeof(Wall));
+
+                    wallCollector.WherePasses(new ElementIntersectsSolidFilter(solid));
+
+                    var roomCollector = new FilteredElementCollector(Doc)
+                                                            .WhereElementIsNotElementType()
+                                                            .OfCategory(BuiltInCategory.INVALID)
+                                                            .OfClass(typeof(SpatialElement))
+                                                            .OfCategory(BuiltInCategory.OST_Rooms);
+
+                    roomCollector.WherePasses(new ElementIntersectsSolidFilter(solid));
 
                     t.Commit();
 
@@ -170,6 +209,98 @@ namespace NanaWalls
             return Result.Succeeded;
         }
 
+        public void GetAssociatedRooms(Document doc, CurveLoop curveloop)
+        {
+            SpatialElementBoundaryOptions options = new SpatialElementBoundaryOptions();
+            options.SpatialElementBoundaryLocation = SpatialElementBoundaryLocation.Finish;
+
+            var colRoom = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .OfCategory(BuiltInCategory.OST_Rooms);
+
+            HashSet<string> roomsnames = new HashSet<string>();
+
+            foreach (Room room in colRoom)
+            {
+                IList<IList<BoundarySegment>> boundarySegments = room.GetBoundarySegments(options);
+                foreach (IList<BoundarySegment> segments in boundarySegments)
+                {
+                    foreach (BoundarySegment segment in segments)
+                    {
+                        foreach (Curve c in curveloop)
+                        {
+                            Curve curve = segment.GetCurve();
+                            if (CheckCurveIntersection(curve, c))
+                            {
+                                roomsnames.Add(room.Name);
+                            }
+                        }
+
+                    }
+                }
+            }
+            var message1 = string.Join(Environment.NewLine, roomsnames);
+            //System.Windows.MessageBox.Show(message1, "Rooms present in this view");
+            TaskDialog.Show("Associated Rooms", message1);
+
+
+        }
+        public bool CheckCurveIntersection(Curve curve1, Curve curve2)
+        {
+            IntersectionResultArray results;
+            SetComparisonResult result = curve1.Intersect(curve2, out results);
+            return (result == SetComparisonResult.Overlap);
+        }
+
+        public GeometryElement GetRoomGeometry(Document doc, ElementId roomId)
+        {
+            Room room = doc.GetElement(roomId) as Room;
+            GeometryElement geom = room.get_Geometry(new Options());
+            return geom;
+        }
+
+        public bool IsSolidInRoom(Document doc, Solid solid)
+        {
+            SpatialElementGeometryCalculator calculator = new SpatialElementGeometryCalculator(doc);
+
+            foreach (SpatialElement se in new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .ToElements())
+            {
+                Options opt = new Options();
+                GeometryElement geomElem = GetRoomGeometry(doc,se.Id);
+                Solid s2 = GetSolidFromGeometryElement(geomElem);
+                
+                if(s2==null)
+                {
+                    continue;
+                }
+                bool checkbool = DoSolidsIntersect(solid, s2);
+                return checkbool;
+            }
+
+            return false;
+        }
+        public Solid GetSolidFromGeometryElement(GeometryElement geom)
+        {
+            foreach (GeometryObject obj in geom)
+            {
+                if (obj is Solid)
+                {
+                    Solid solid = obj as Solid;
+                    return solid;
+                }
+            }
+            return null;
+        }
+
+        public bool DoSolidsIntersect(Solid solid1, Solid solid2)
+        {
+            Solid intersection = BooleanOperationsUtils.ExecuteBooleanOperation(solid1, solid2, BooleanOperationsType.Intersect);
+            return (intersection != null);
+        }
+
         public Line CreateParallelLine(Line target, int offset)
         {
 
@@ -180,7 +311,6 @@ namespace NanaWalls
             var xDifference = target.GetEndPoint(0).X - target.GetEndPoint(1).X;
             var yDifference = target.GetEndPoint(0).Y - target.GetEndPoint(1).Y;
             var length = Math.Sqrt(Math.Pow(xDifference, 2) + Math.Pow(yDifference, 2));
-
 
 
             var X1 = (float)(target.GetEndPoint(0).X - offset * yDifference / length);
@@ -195,6 +325,8 @@ namespace NanaWalls
 
         public void DrawModelLine(Line line)
         {
+
+
             XYZ origin = new XYZ(0, 0, 0);
 
             XYZ dir = line.Direction;
@@ -209,7 +341,7 @@ namespace NanaWalls
             double dxy = Math.Abs(v.X) + Math.Abs(v.Y);
 
             w = XYZ.BasisY;
-
+            
             //? XYZ.BasisZ
             //: XYZ.BasisY;
 
@@ -227,6 +359,8 @@ namespace NanaWalls
             ModelLine line12 = Doc.Create.NewModelCurve(line, sketch) as ModelLine;
 
         }
+
+                                         
 
 
 
