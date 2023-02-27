@@ -66,12 +66,17 @@ namespace NanaWalls
             app.SharedParametersFilename = tempFile;
             DefinitionFile sharedParameterFile = app.OpenSharedParameterFile();
 
+            //for binding new defination and parameter to category
+            //{
             DefinitionGroup dgc = sharedParameterFile.Groups.Create("New Param");
-
             ExternalDefinitionCreationOptions opt = new ExternalDefinitionCreationOptions("Log11",ParameterType.Text);
-
             Definition defc = dgc.Definitions.Create(opt);
 
+            InstanceBinding newIB2 = app.Create.NewInstanceBinding(categories);
+            doc.ParameterBindings.Insert(defc, newIB2, BuiltInParameterGroup.PG_TEXT);
+            //}
+
+            //for binding already present defination and parameter to category
             foreach (DefinitionGroup dg in sharedParameterFile.Groups)
             {
                 // ExternalDefinition externalDefinition = app.Create.NewExternalDefinition(false, ParameterType.Text);
