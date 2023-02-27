@@ -55,6 +55,7 @@
   <ItemGroup>
     <Compile Include="ChairInstance.cs" />
     <Compile Include="Class1.cs" />
+    <Compile Include="CreateParameter.cs" />
     <Compile Include="CreateWall.cs" />
     <Compile Include="ExtrudeWall.cs" />
     <Compile Include="FamInstance.cs" />
